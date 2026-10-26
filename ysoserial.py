@@ -32,20 +32,13 @@ def run_ysoserial(payload_type, command):
     """Executes the JAR file and returns base64 encoded string payload."""
     try:
         cmd = ["java", "-jar", JAR_PATH, payload_type, command]
-        # Runs command safely without a shell environment
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-
-        # Base64 encode the binary stdout
-        b64_payload = base64.b64encode(result.stdout).decode('utf-8')
-        return b64_payload
+        return base64.b64encode(result.stdout).decode('utf-8')
     except subprocess.CalledProcessError as e:
         print(f"Error executing ysoserial for {payload_type}: {e.stderr.decode().strip()}", file=sys.stderr)
         return None
 
-
 def main():
-    print(f"DEBUG: sys.argv is {sys.argv}", file=sys.stderr)
-
     parser = argparse.ArgumentParser(
         description="Ysoserial Payload Generator & Detector Wrapper",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -74,10 +67,7 @@ def main():
                 print(output)
         return
 
-    # 2. Normal mode: Ensure we have exactly a payload and a command in 'remaining'
-    if len(remaining) < 2:
-        parser.error("Provide a payload type and a command, or use -d DOMAIN.")
-
+    # 2. Unified execution mode (Handles both specific payload pairs and 0-argument help)
     try:
         result = subprocess.run(
             ["java", "-jar", JAR_PATH, *remaining],
@@ -87,8 +77,6 @@ def main():
     except OSError as e:
         print(f"Error executing ysoserial: {e}", file=sys.stderr)
         sys.exit(1)
-
-
 
 if __name__ == "__main__":
     main()
