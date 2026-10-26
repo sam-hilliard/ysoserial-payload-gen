@@ -9,14 +9,14 @@ import sys
 JAR_PATH = "/app/ysoserial-all.jar"
 
 PAYLOADS = [
-    "AspectJWeaver", "BeanShell1", "C3P0", "Click1", "Clojure", "CommonsBeanutils1",
+    "BeanShell1", "Click1", "Clojure", "CommonsBeanutils1",
     "CommonsCollections1", "CommonsCollections2", "CommonsCollections3", "CommonsCollections4",
-    "CommonsCollections5", "CommonsCollections6", "CommonsCollections7", "FileUpload1",
+    "CommonsCollections5", "CommonsCollections6", "CommonsCollections7",
     "Groovy1", "Hibernate1", "Hibernate2", "JBossInterceptors1", "JRMPClient",
-    "JRMPListener", "JSON1", "JavassistWeld1", "Jdk7u21", "Jython1", "MozillaRhino1",
-    "MozillaRhino2", "Myfaces1", "Myfaces2", "ROME", "Spring1", "Spring2",
-    "URLDNS", "Vaadin1", "Wicket1"
+    "JSON1", "JavassistWeld1", "Jdk7u21", "MozillaRhino1", "MozillaRhino2",
+    "Myfaces1", "ROME", "Spring1", "Spring2", "Vaadin1"
 ]
+
 
 def check_dependencies():
     """Verify that java exists and the target JAR path is valid."""
